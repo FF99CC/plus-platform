@@ -28,10 +28,13 @@ python3 dev.py credentials  # 查看初始账号密码
 | `python3 dev.py status` | 查看服务状态 |
 | `python3 dev.py logs backend -f` | 持续查看后端日志；前端用 `web` |
 | `python3 dev.py stop` | 停止服务，保留数据 |
+| `python3 dev.py demo` | 服务启动后，添加演示公司、人员和审批草稿 |
 
 `dev` 和 `up` 会互相切换，共用本地账号和数据。关闭终端不会停止服务。
 修改依赖、配置或启动脚本后，重新运行当前使用的命令。
 两种方式都是本地运行；正式部署还需配置 HTTPS、独立数据和备份。
+
+演示数据的账号和流程用法见[业务说明](docs/project-usage.md#演示数据)。初始化可重复运行，保留页面上的修改；不会自动发布演示草稿。
 
 ## 配置与数据
 

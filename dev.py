@@ -13,6 +13,7 @@ from ops.local_config import ConfigError, prepare, remember_initialized
 from ops.runtime import check_compose, compose, docker_ready, refuse_untracked_volumes
 from ops.migrations import migrate
 from ops.project_setup import provision
+from ops.demo_setup import DemoSetup, show_credentials
 
 
 ROOT = Path(__file__).resolve().parent
@@ -54,11 +55,13 @@ def main():
         ("build", "只构建镜像，不启动或初始化数据库"),
         ("status", "显示本工程容器状态"),
         ("stop", "停止本工程容器，保留全部数据"),
-        ("credentials", "查看首次初始化的本地登录账号和密码"),
         ("migrate", "执行本工程尚未执行的版本化数据库迁移"),
         ("provision", "发布缺少的项目演示审批流程，保留已有配置"),
+        ("demo", "补充虚构公司、部门、人员及审批草稿，保留已有设置"),
     ):
         commands.add_parser(name, help=help_text)
+    credentials_parser = commands.add_parser("credentials", help="查看初始账号密码")
+    credentials_parser.add_argument("--demo", action="store_true", help="查看额外的演示账号")
     log_parser = commands.add_parser("logs", help="显示本工程日志，默认最后 150 行")
     log_parser.add_argument("service", nargs="?", choices=SERVICES)
     log_parser.add_argument("-f", "--follow", action="store_true")
@@ -72,6 +75,9 @@ def main():
     with contextlib.nullcontext() if readonly else operation_lock():
         config = prepare(ROOT)
         if args.command == "credentials":
+            if args.demo:
+                show_credentials(ROOT)
+                return
             print("以下是首次初始化密码；在页面中改密后以页面设置为准。")
             for account, key in (("admin", "ADMIN_PASSWORD"), ("test", "TEST_PASSWORD"), ("test1", "TEST1_PASSWORD")):
                 print("%s: %s" % (account, config[key]))
@@ -79,7 +85,7 @@ def main():
         if args.command == "prepare":
             print("配置已就绪：%s\n密码与原配置保持稳定；尚未启动任何容器。" % (ROOT / ".env.local"))
             return
-        if args.command in ("check", "up", "build", "dev", "migrate", "provision"):
+        if args.command in ("check", "up", "build", "dev", "migrate", "provision", "demo"):
             check_compose(ROOT, config, development=args.command == "dev")
             if args.command == "check":
                 check_compose(ROOT, config, development=True)
@@ -114,6 +120,8 @@ def main():
             migrate(ROOT, config)
         elif args.command == "provision":
             provision(ROOT, config)
+        elif args.command == "demo":
+            DemoSetup(ROOT, config).run()
         elif args.command == "stop":
             compose(ROOT, config, ["stop"])
         elif args.command == "logs":
