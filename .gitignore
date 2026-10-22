@@ -1,0 +1,15 @@
+.env.local
+.runtime/
+.cache/
+.temp/
+__pycache__/
+*.py[cod]
+.DS_Store
+**/target/
+**/.idea/
+*.iml
+**/.claude/
+**/.codex/
+backend/logs/
+frontend/node_modules/
+frontend/dist/

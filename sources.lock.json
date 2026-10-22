@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "sources": {
+    "backend": {
+      "repository": "https://github.com/dromara/RuoYi-Vue-Plus.git",
+      "tag": "v6.0.0",
+      "commit": "7180b529776834fee912113b23f0bd7a387a8222",
+      "license": "MIT",
+      "original_snapshot_sha256": "25dcd41be2046031cc7ee712f918de66eb17b196e343bcb7b52e20425abd82fc"
+    },
+    "frontend": {
+      "repository": "https://github.com/CrazyLionCat/plus-ui.git",
+      "tag": "v6.0.0-Vue",
+      "commit": "aa3f114bf4f6a49086e43aafd00f146b0b517d19",
+      "license": "MIT",
+      "original_snapshot_sha256": "b787a4703fbbd9c6700ad1f1728fc87ee430a11cb5bda3c47f47ea4184c2fa10"
+    }
+  }
+}

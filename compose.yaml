@@ -1,0 +1,113 @@
+name: em-plus-local
+
+services:
+  bootstrap:
+    build:
+      context: .
+      dockerfile: ops/bootstrap.Dockerfile
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD}
+      TEST_PASSWORD: ${TEST_PASSWORD:?Set TEST_PASSWORD}
+      TEST1_PASSWORD: ${TEST1_PASSWORD:?Set TEST1_PASSWORD}
+    volumes:
+      - init_sql:/init-sql
+    restart: "no"
+
+  db:
+    image: mysql:8.4.9
+    environment:
+      MYSQL_DATABASE: plus_platform
+      MYSQL_USER: plus_app
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+      TZ: Asia/Singapore
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --explicit-defaults-for-timestamp=1
+    volumes:
+      - db_data:/var/lib/mysql
+      - init_sql:/docker-entrypoint-initdb.d:ro
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'mysql --protocol=TCP -h127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent --skip-column-names -e "SELECT id FROM plus_platform.local_bootstrap_complete WHERE id=1" | grep -qx 1'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    restart: unless-stopped
+
+  redis:
+    # Keep the service alias and password variable for existing Spring/client config.
+    image: valkey/valkey:8.1.10-alpine3.24
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    command:
+      - /bin/sh
+      - -c
+      - 'exec valkey-server --appendonly yes --requirepass "$$REDIS_PASSWORD"'
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'valkey-cli --no-auth-warning -a "$$REDIS_PASSWORD" ping | grep -qx PONG'
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: ops/backend.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      CAPTCHA_ENABLED: ${CAPTCHA_ENABLED:-true}
+      TZ: Asia/Singapore
+    volumes:
+      - backend_logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --show-error, http://127.0.0.1:8080/auth/code]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: ops/frontend.Dockerfile
+    ports:
+      - '127.0.0.1:${WEB_PORT:-18880}:80'
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  valkey_data:
+  # redis_data: retained on disk as a Redis 8 rollback source; never mount into Valkey.
+  init_sql:
+  backend_logs:

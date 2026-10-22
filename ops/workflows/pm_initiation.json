@@ -1,0 +1,105 @@
+{
+  "nodeList": [
+    {
+      "nodeType": "0",
+      "nodeCode": "pm_initiation_0",
+      "nodeName": "开始",
+      "permissionFlag": null,
+      "nodeRatio": "0.000",
+      "anyNodeSkip": null,
+      "listenerType": null,
+      "listenerPath": null,
+      "formCustom": "N",
+      "formPath": null,
+      "ext": "[]",
+      "coordinate": "200,200|200,200",
+      "version": "1",
+      "skipList": [
+        {
+          "skipType": "PASS",
+          "skipCondition": null,
+          "skipName": null,
+          "nowNodeCode": "pm_initiation_0",
+          "nextNodeCode": "pm_initiation_1",
+          "coordinate": "220,200;310,200"
+        }
+      ]
+    },
+    {
+      "nodeType": "1",
+      "nodeCode": "pm_initiation_1",
+      "nodeName": "提交申请",
+      "permissionFlag": "${initiator}",
+      "nodeRatio": "0.000",
+      "anyNodeSkip": null,
+      "listenerType": "",
+      "listenerPath": "",
+      "formCustom": "N",
+      "formPath": null,
+      "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,file,copy\"}]",
+      "coordinate": "360,200|360,200",
+      "version": "1",
+      "skipList": [
+        {
+          "skipType": "PASS",
+          "skipCondition": null,
+          "skipName": null,
+          "nowNodeCode": "pm_initiation_1",
+          "nextNodeCode": "pm_initiation_2",
+          "coordinate": "410,200;490,200"
+        }
+      ]
+    },
+    {
+      "nodeType": "1",
+      "nodeCode": "pm_initiation_2",
+      "nodeName": "审批负责人",
+      "permissionFlag": "role:800000000000000002",
+      "nodeRatio": "0.000",
+      "anyNodeSkip": null,
+      "listenerType": "",
+      "listenerPath": "",
+      "formCustom": "N",
+      "formPath": null,
+      "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,copy,transfer,trust,file\"}]",
+      "coordinate": "540,200|540,200",
+      "version": "1",
+      "skipList": [
+        {
+          "skipType": "PASS",
+          "skipCondition": null,
+          "skipName": null,
+          "nowNodeCode": "pm_initiation_2",
+          "nextNodeCode": "pm_initiation_3",
+          "coordinate": "590,200;670,200"
+        }
+      ]
+    },
+    {
+      "nodeType": "2",
+      "nodeCode": "pm_initiation_3",
+      "nodeName": "结束",
+      "permissionFlag": null,
+      "nodeRatio": "0.000",
+      "anyNodeSkip": null,
+      "listenerType": null,
+      "listenerPath": null,
+      "formCustom": "N",
+      "formPath": null,
+      "ext": "[]",
+      "coordinate": "900,200|900,200",
+      "version": "1",
+      "skipList": []
+    }
+  ],
+  "flowCode": "pm_initiation",
+  "flowName": "施工立项审批",
+  "modelValue": "CLASSICS",
+  "category": "800000000000000200",
+  "version": "1",
+  "formCustom": "N",
+  "formPath": "/project/projects",
+  "listenerType": null,
+  "listenerPath": null,
+  "ext": "{\"autoPass\":false}"
+}

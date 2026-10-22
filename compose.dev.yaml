@@ -1,0 +1,44 @@
+# Applied only by `python3 dev.py dev`. Infrastructure and credentials stay in compose.yaml.
+services:
+  backend:
+    image: em-plus-local-backend-dev
+    stop_grace_period: 35s
+    build:
+      context: .
+      dockerfile: ops/backend-dev.Dockerfile
+    volumes:
+      # Dev runs Maven/Java as root; keep its rotated logs away from the image's app user.
+      - dev_backend_logs:/app/logs
+      - ./backend:/source/backend:ro
+      - ./ops/application-local.properties:/config/application-local.properties:ro
+      - dev_maven_cache:/root/.m2
+      - dev_backend_workspace:/workspace/backend
+    healthcheck:
+      start_period: 600s
+
+  web:
+    image: em-plus-local-web-dev
+    build:
+      context: .
+      dockerfile: ops/frontend-dev.Dockerfile
+    environment:
+      VITE_APP_BASE_API: /prod-api
+      VITE_APP_ENCRYPT: "false"
+      VITE_APP_RSA_PUBLIC_KEY: ""
+      VITE_APP_RSA_PRIVATE_KEY: ""
+      VITE_DEV_PROXY_TARGET: http://backend:8080
+      VITE_DEV_OPEN: "false"
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./frontend:/workspace/frontend
+      - dev_node_modules:/workspace/frontend/node_modules
+      - dev_pnpm_store:/pnpm/store
+    healthcheck:
+      start_period: 300s
+
+volumes:
+  dev_backend_logs:
+  dev_maven_cache:
+  dev_backend_workspace:
+  dev_node_modules:
+  dev_pnpm_store:
