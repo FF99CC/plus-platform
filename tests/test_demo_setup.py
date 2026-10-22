@@ -9,6 +9,14 @@ from ops.local_config import ConfigError
 
 
 class DemoSetupTests(unittest.TestCase):
+    def test_explicit_initial_password_is_saved_and_never_resets_existing_demo(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            setup = DemoSetup(root, {'DEMO_PASSWORD': 'DemoPass_12345'}, api=Mock())
+            self.assertEqual(json.loads(setup.path.read_text())['password'], 'DemoPass_12345')
+            existing = DemoSetup(root, {'DEMO_PASSWORD': 'Different_12345'}, api=Mock())
+            self.assertEqual(existing.state['password'], 'DemoPass_12345')
+
     def test_organization_is_complete_and_independent_of_legacy_roles(self):
         departments, users = organization()
         self.assertEqual(len(departments), 19)

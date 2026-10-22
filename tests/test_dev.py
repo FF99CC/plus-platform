@@ -31,6 +31,18 @@ class LocalEnvironmentTests(unittest.TestCase):
         with self.assertRaises(ConfigError):
             prepare(self.root)
 
+    def test_explicit_login_and_demo_passwords_do_not_weaken_service_secrets(self):
+        prepare(self.root)
+        for key in ('ADMIN_PASSWORD', 'TEST_PASSWORD', 'TEST1_PASSWORD'):
+            self.replace(key, 'DemoPass_12345')
+        with (self.root / '.env.local').open('a') as stream:
+            stream.write('DEMO_PASSWORD=DemoPass_12345\n')
+        config = prepare(self.root)
+        self.assertEqual(config['DEMO_PASSWORD'], 'DemoPass_12345')
+        self.replace('DB_PASSWORD', 'DemoPass_12345')
+        with self.assertRaises(ConfigError):
+            prepare(self.root)
+
     def test_rejects_interpolation_and_shell_syntax_in_credentials(self):
         prepare(self.root)
         for value in ("a$HOME12345678901234567890", "$(touch nope)123456789012345", "'12345678901234567890"):

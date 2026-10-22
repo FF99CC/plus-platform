@@ -54,7 +54,7 @@ def main():
     hashes = {}
     for account, key in ACCOUNTS.items():
         value = os.environ[key]
-        if not re.fullmatch(r"[A-Za-z0-9_-]{16,20}", value):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{8,20}", value):
             raise ValueError("Invalid local account password configuration: " + key)
         # Prefix 2a matches the Java application's Hutool BCrypt implementation.
         hashes[account] = bcrypt.hashpw(value.encode(), bcrypt.gensalt(rounds=12, prefix=b"2a")).decode()

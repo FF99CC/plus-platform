@@ -70,7 +70,7 @@ class DemoSetup:
             if self.state.get('version') != 1:
                 raise ConfigError('演示数据记录版本不匹配，请保留 .runtime/demo-data.json。')
         else:
-            self.state = {'version': 1, 'password': secrets.token_urlsafe(15),
+            self.state = {'version': 1, 'password': config.get('DEMO_PASSWORD') or secrets.token_urlsafe(15),
                           'departments': {}, 'users': {}, 'roles': {}, 'flows': {}, 'leaders': []}
         self.save()  # Persist the initial password before the first account can be created.
         self.api = api or LocalApi(self.root, config).login('admin', 'ADMIN_PASSWORD')

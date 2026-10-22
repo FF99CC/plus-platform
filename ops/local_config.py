@@ -15,7 +15,8 @@ SECRET_KEYS = (
 )
 LOGIN_KEYS = {"ADMIN_PASSWORD", "TEST_PASSWORD", "TEST1_PASSWORD"}
 DEFAULTS = {"WEB_PORT": "18880", "CAPTCHA_ENABLED": "true"}
-KEYS = set(DEFAULTS) | set(SECRET_KEYS)
+OPTIONAL_KEYS = {"DEMO_PASSWORD"}
+KEYS = set(DEFAULTS) | set(SECRET_KEYS) | OPTIONAL_KEYS
 
 
 class ConfigError(ValueError):
@@ -44,7 +45,7 @@ def load_config(path):
         if not separator or key not in KEYS or key in result:
             raise ConfigError("配置第 %s 行无效、重复或包含未知配置项；请参考 .env.example。" % number)
         result[key] = value
-    if set(result) != KEYS:
+    if set(result) - OPTIONAL_KEYS != KEYS - OPTIONAL_KEYS:
         raise ConfigError("配置项不完整；请对照 .env.example 恢复，切勿重新生成已有数据库的密码。")
     if not re.fullmatch(r"[0-9]{4,5}", result["WEB_PORT"]):
         raise ConfigError("WEB_PORT 必须为 1024–65535 的端口。")
@@ -53,10 +54,11 @@ def load_config(path):
         raise ConfigError("WEB_PORT 无效或与旧系统 18083 冲突。")
     if result["CAPTCHA_ENABLED"] not in ("true", "false"):
         raise ConfigError("CAPTCHA_ENABLED 只能是 true 或 false。")
-    for key in SECRET_KEYS:
-        pattern = r"[A-Za-z0-9_-]{16,20}" if key in LOGIN_KEYS else r"[A-Za-z0-9_-]{20,64}"
+    for key in set(SECRET_KEYS) | (OPTIONAL_KEYS & set(result)):
+        login = key in LOGIN_KEYS or key == 'DEMO_PASSWORD'
+        pattern = r"[A-Za-z0-9_-]{8,20}" if login else r"[A-Za-z0-9_-]{20,64}"
         if not re.fullmatch(pattern, result[key]):
-            limit = "16–20" if key in LOGIN_KEYS else "20–64"
+            limit = "8–20" if login else "20–64"
             raise ConfigError("%s 必须是 %s 位字母、数字、下划线或短横线，不使用引号。" % (key, limit))
     return result
 
