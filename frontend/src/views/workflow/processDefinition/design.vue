@@ -1,101 +1,141 @@
 <template>
-  <div ref="container" class="warm-flow-designer-page">
-    <el-collapse v-if="isProjectFlow" class="warm-flow-designer-page__guide">
-      <el-collapse-item title="项目审批配置说明" name="guide">
-        <p>可配置串行审批、条件分支和并行审批，在节点中选择办理人、角色、部门或岗位。所选人员还需有项目审批权限。</p>
-        <p>修改已发布流程请先创建新版本草稿；新版本发布后用于新申请，进行中的审批继续使用原版本。</p>
-        <p>提交后至少保留一个人工审批节点，不支持直接自动结束。退回会结束本次申请，由经办人修改后重新提交。</p>
-        <el-table :data="projectVariables" size="small" border>
-          <el-table-column prop="key" label="条件名" min-width="160" />
-          <el-table-column prop="description" label="含义与取值" min-width="260" />
-        </el-table>
-        <p>条件变量取自本次提交的项目资料，金额单位为元；未填写的可选文字按空字符串、金额按 0 处理。</p>
-        <p>
-          示例：选中分支连线，将条件名设为 acquisitionMode，条件方式选“等于”，值填 TENDER（不加引号）；金额分支可将
-          estimatedAmount 设为“大于等于”1000000，另一分支设为“小于”1000000。
-        </p>
-      </el-collapse-item>
-    </el-collapse>
-    <iframe ref="iframe" :src="iframeUrl" frameborder="0" class="warm-flow-designer-page__iframe"></iframe>
+  <div class="warm-flow-designer-page">
+    <el-alert v-if="!canQuery" type="warning" :closable="false" title="您没有查看流程配置的权限。" />
+    <template v-else-if="ready">
+      <div v-if="isProjectFlow" class="designer-toolbar">
+        <el-button :type="mode === 'config' ? 'primary' : 'default'" @click="showConfig(false)">条件与审批人</el-button>
+        <el-button :type="mode === 'graph' ? 'primary' : 'default'" @click="showGraph">
+          流程图（新增步骤和分支）
+        </el-button>
+        <span v-if="mode === 'graph'" class="designer-help">
+          新增步骤和分支后，请使用图中的“保存”按钮；保存后返回中文配置。
+        </span>
+      </div>
+      <ProjectFlowConfig
+        v-if="isProjectFlow && mode === 'config'"
+        ref="configPanel"
+        :definition-id="definitionId"
+        :disabled="readOnly"
+        @graph="showGraph"
+        @dirty="value => (configDirty = value)"
+      />
+      <iframe
+        v-else
+        ref="iframe"
+        :src="iframeUrl"
+        title="流程图设计器"
+        frameborder="0"
+        class="warm-flow-designer-page__iframe"
+      ></iframe>
+    </template>
   </div>
 </template>
-
 <script setup name="WarmFlow" lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { ElMessageBox } from 'element-plus';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { getInfo } from '@/api/workflow/definition';
+import auth from '@/plugins/auth';
 import tab from '@/plugins/tab';
 import { getToken } from '@/utils/auth';
-
+import ProjectFlowConfig from './components/ProjectFlowConfig.vue';
 const route = useRoute();
-// definitionId为需要查询的流程定义id，
-// disabled为是否可编辑, 例如：查看的时候不可编辑，不可保存
-const iframeUrl = ref('');
 const baseUrl = import.meta.env.VITE_APP_BASE_API;
+const canQuery = auth.hasPermi('workflow:definition:query');
+const canEdit = auth.hasPermi('workflow:definition:edit');
+const iframeUrl = ref('');
 const iframe = ref<HTMLIFrameElement>();
+const configPanel = ref<InstanceType<typeof ProjectFlowConfig>>();
+const definitionId = ref('');
 const isProjectFlow = ref(false);
-const projectVariables = [
-  { key: 'applicationType', description: '申请类型：REGISTRATION（备案）、BID（投标）、INITIATION（立项）' },
-  { key: 'acquisitionMode', description: '承接方式：DIRECT（直接委托）、TENDER（投标）' },
-  { key: 'projectType', description: '项目类型' },
-  { key: 'estimatedAmount', description: '预计金额（元）' },
-  { key: 'bidType', description: '投标类型' },
-  { key: 'bidAmount', description: '中标金额（元）' },
-  { key: 'projectAmount', description: '立项金额（元）' }
-];
-
-const onDesignerMessage = (event: MessageEvent) => {
-  if (!iframeUrl.value || event.source !== iframe.value?.contentWindow) {
-    return;
-  }
-  if (event.origin !== new URL(iframeUrl.value, window.location.href).origin) {
-    return;
-  }
-  if (event.data?.method === 'close') {
-    close();
-  }
-};
-const open = async (definitionId: unknown, disabled: unknown) => {
-  const id = typeof definitionId === 'string' ? definitionId : '';
+const readOnly = ref(true);
+const ready = ref(false);
+const mode = ref<'config' | 'graph'>('config');
+const configDirty = ref(false);
+function refreshIframe() {
   const params = new URLSearchParams({
-    id,
+    id: definitionId.value,
     onlyDesignShow: 'true',
-    disabled: String(disabled === 'true' || disabled === true),
+    disabled: String(readOnly.value),
     Authorization: 'Bearer ' + getToken(),
     clientid: import.meta.env.VITE_APP_CLIENT_ID
   });
   iframeUrl.value = `${baseUrl}/warm-flow-ui/index.html?${params}`;
-  isProjectFlow.value = false;
-  if (id) {
-    const { data } = await getInfo(id);
-    isProjectFlow.value = data.flowCode?.startsWith('pm_') === true;
-  }
-};
-/** 关闭按钮 */
-function close() {
-  const obj = {
-    path: '/workflow/processDefinition',
-    query: { activeName: route.query.activeName }
-  };
-  tab.closeOpenPage(obj);
 }
-
+async function confirmGraphLeave() {
+  if (readOnly.value) return true;
+  try {
+    await ElMessageBox.confirm('请先使用流程图内的“保存”按钮。直接离开将放弃图中未保存的修改。', '离开流程图', {
+      confirmButtonText: '放弃未保存修改并离开',
+      cancelButtonText: '返回流程图',
+      type: 'warning'
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function showGraph() {
+  if (mode.value === 'graph') return;
+  if (configPanel.value && !(await configPanel.value.beforeLeave())) return;
+  configDirty.value = false;
+  refreshIframe();
+  mode.value = 'graph';
+}
+async function showConfig(fromDesigner: boolean) {
+  if (mode.value === 'config') return;
+  if (!fromDesigner && !(await confirmGraphLeave())) return;
+  mode.value = 'config';
+}
+function onDesignerMessage(event: MessageEvent) {
+  if (
+    !iframeUrl.value ||
+    event.source !== iframe.value?.contentWindow ||
+    event.origin !== new URL(iframeUrl.value, window.location.href).origin
+  )
+    return;
+  if (event.data?.method === 'close') {
+    if (isProjectFlow.value) showConfig(true);
+    else tab.closeOpenPage({ path: '/workflow/processDefinition', query: { activeName: route.query.activeName } });
+  }
+}
+async function open(id: unknown, disabled: unknown) {
+  if (!canQuery) return;
+  ready.value = false;
+  definitionId.value = typeof id === 'string' ? id : '';
+  readOnly.value = disabled === 'true' || disabled === true || !canEdit;
+  isProjectFlow.value = false;
+  if (definitionId.value) {
+    const { data } = await getInfo(definitionId.value);
+    isProjectFlow.value = data.flowCode?.startsWith('pm_') === true;
+    readOnly.value = readOnly.value || Number(data.isPublish) !== 0;
+  }
+  mode.value = isProjectFlow.value ? 'config' : 'graph';
+  refreshIframe();
+  ready.value = true;
+}
+function beforeUnload(event: BeforeUnloadEvent) {
+  if (configDirty.value || (isProjectFlow.value && mode.value === 'graph' && !readOnly.value)) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+}
+onBeforeRouteLeave(async () => {
+  if (!isProjectFlow.value) return true;
+  if (mode.value === 'config') return (await configPanel.value?.beforeLeave()) ?? true;
+  return await confirmGraphLeave();
+});
 onMounted(() => {
   window.addEventListener('message', onDesignerMessage);
+  window.addEventListener('beforeunload', beforeUnload);
   open(route.query.definitionId, route.query.disabled);
 });
-
 onBeforeUnmount(() => {
   window.removeEventListener('message', onDesignerMessage);
+  window.removeEventListener('beforeunload', beforeUnload);
 });
-/**
- * 对外暴露子组件方法
- */
-defineExpose({
-  open
-});
+defineExpose({ open });
 </script>
-
 <style lang="scss" scoped>
 .warm-flow-designer-page {
   display: flex;
@@ -104,26 +144,22 @@ defineExpose({
   height: calc(100vh - 123px);
   overflow: hidden;
 }
-
 .warm-flow-designer-page__iframe {
   display: block;
   width: 100%;
   flex: 1;
   min-height: 0;
 }
-
-.warm-flow-designer-page__guide {
-  padding: 0 16px;
-  background: var(--el-bg-color);
-  flex-shrink: 0;
+.designer-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--el-border-color);
 }
-
-.warm-flow-designer-page__guide :deep(.el-collapse-item__wrap) {
-  max-height: 40vh;
-  overflow-y: auto;
-}
-
-.warm-flow-designer-page__guide p {
-  margin: 4px 0;
+.designer-help {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 </style>

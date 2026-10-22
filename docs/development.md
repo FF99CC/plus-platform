@@ -48,6 +48,8 @@
 
 分支条件使用提交时的申请快照：`applicationType`、`acquisitionMode`、`projectType`、`estimatedAmount`、`bidType`、`bidAmount`、`projectAmount`。金额单位为元，未填金额按 0、未填可选文本按空字符串处理。客户端不能指定流程变量或跳过审批权限。
 
+发起人和发起部门由启动流程时的登录信息提供。中文配置仍读写 WarmFlow 原有定义，不另存一套流程；特殊配置原样保留。`ProjectWorkflowPreview` 使用同一引擎预估已保存的路线，服务端读取模拟发起人的部门，只查询、不发起审批。
+
 审批结果需要核对申请和流程状态；同一结果通知多次也只能处理一次。
 `WorkflowHttpGuard` 防止通过通用流程接口绕过项目权限。修改审批功能时保留这些检查。
 
@@ -88,6 +90,9 @@ pnpm build
 
 ```sh
 python3 -m tests.integration.project_flow
+python3 -m tests.integration.workflow_configuration
 ```
 
 此测试使用初始测试账号，会创建并保留带 `[验证]` 前缀的项目和审批记录。它不会随启动或单元测试自动运行；账号密码或角色改过后，需要先核对测试配置。
+
+`workflow_configuration` 另外验证条件分支、部门负责人和路线预览，结束时恢复原发布版本并清理专用测试账号、部门。

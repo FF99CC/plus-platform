@@ -105,9 +105,12 @@ public class ProjectWorkflow {
 
     /** Stable, documented facts from the persisted submission snapshot, never arbitrary input. */
     private Map<String, Object> conditionVariables(ProjectApplication app) {
+        return conditionVariables(app.getType(), app.getSnapshot());
+    }
+
+    static Map<String, Object> conditionVariables(String applicationType, Project snapshot) {
         Map<String, Object> variables = new HashMap<>();
-        variables.put("applicationType", app.getType());
-        Project snapshot = app.getSnapshot();
+        variables.put("applicationType", applicationType);
         if (snapshot == null) return variables;
         variables.put("acquisitionMode", snapshot.getAcquisitionMode());
         variables.put(
